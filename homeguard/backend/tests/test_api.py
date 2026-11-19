@@ -218,6 +218,22 @@ def test_second_discovery_is_rejected_while_one_is_running(client: TestClient, m
     assert _wait(client, first.json()["id"])["status"] == "cancelled"
 
 
+def test_duplicate_network_is_rejected_and_a_saved_network_can_be_removed(client: TestClient) -> None:
+    _sign_in(client)
+    network_id = _save(client)
+    duplicate = client.post(
+        "/api/networks",
+        json={"name": "Wi-Fi", "cidr": "192.168.1.0/24"},
+        headers=LOCAL,
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.json()["detail"]["code"] == "network_already_saved"
+
+    removed = client.delete(f"/api/networks/{network_id}", headers=LOCAL)
+    assert removed.status_code == 204
+    assert client.get("/api/networks").json() == []
+
+
 def test_scan_start_requires_a_session(client: TestClient) -> None:
     response = client.post("/api/scans", json={"network_id": 1, "profile": "discovery"}, headers=LOCAL)
     assert response.status_code == 401

@@ -13,11 +13,11 @@ export function Layout() {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
           <div>
             <p className="text-lg font-medium tracking-tight">HomeGuard</p>
-            <p className="text-sm text-stone-600">Local home network scanner</p>
+            <p className="text-sm text-stone-600">See what is on your home Wi-Fi</p>
           </div>
           <nav className="flex gap-2" aria-label="Primary">
             <NavLink to="/" end className={linkClass}>
-              Dashboard
+              Home
             </NavLink>
             <NavLink to="/setup" className={linkClass}>
               Setup

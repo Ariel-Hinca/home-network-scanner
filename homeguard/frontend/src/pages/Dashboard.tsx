@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, ApiError } from "../api";
 import type { DiscoveredHost, Health, Network, Scan, SetupStatus, ValidatedCidr } from "../types";
 
@@ -24,9 +25,9 @@ export function DashboardPage() {
           setHealth(body);
         }
       })
-      .catch((error: unknown) => {
+      .catch(() => {
         if (active) {
-          setHealthError(error instanceof Error ? error.message : "The API did not respond.");
+          setHealthError("HomeGuard is not running. Start it, then refresh this page.");
         }
       });
     return () => {
@@ -55,7 +56,7 @@ export function DashboardPage() {
         }
       } catch (error) {
         if (active && error instanceof ApiError && error.status !== 401) {
-          setScanError(error.message);
+          setScanError("HomeGuard could not load your last search.");
         }
       }
     }
@@ -78,8 +79,8 @@ export function DashboardPage() {
             setBusy(false);
           }
         })
-        .catch((error: unknown) => {
-          setScanError(error instanceof ApiError ? error.message : "The discovery status could not be read.");
+        .catch(() => {
+          setScanError("HomeGuard could not update the search. Refresh the page.");
         });
     }, 1500);
     return () => window.clearInterval(timer);
@@ -97,7 +98,11 @@ export function DashboardPage() {
       });
       setResult(body);
     } catch (error) {
-      setCheckError(error instanceof ApiError ? error.message : "The check failed.");
+      setCheckError(
+        error instanceof ApiError
+          ? "HomeGuard cannot check that network. Use a private home address such as 192.168.1.0/24."
+          : "The check failed.",
+      );
     } finally {
       setChecking(false);
     }
@@ -114,7 +119,7 @@ export function DashboardPage() {
       });
       setScan(started);
     } catch (error) {
-      setScanError(error instanceof ApiError ? error.message : "Discovery did not start.");
+      setScanError(plainScanError(error));
       setBusy(false);
     }
   }
@@ -126,133 +131,140 @@ export function DashboardPage() {
     setScanError(null);
     try {
       setScan(await api<Scan>(`/api/scans/${scan.id}/cancel`, { method: "POST" }));
-    } catch (error) {
-      setScanError(error instanceof ApiError ? error.message : "Discovery could not be cancelled.");
+    } catch {
+      setScanError("The search could not be stopped.");
     }
   }
 
   const running = scan?.status === "queued" || scan?.status === "running";
+  const ready = health?.status === "ok" && health.database === "ok" && health.nmap === "ok";
 
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-2xl font-medium">Dashboard</h1>
+        <h1 className="text-2xl font-medium">Your home network</h1>
         <p className="mt-2 max-w-2xl text-sm text-stone-600">
-          Phase 1 looks for devices on a confirmed home network. It does not check open ports
-          beyond a short list of common ones, and it does not look for vulnerabilities.
+          HomeGuard looks for phones, computers, printers, and the router on the Wi-Fi you allowed.
+          It only checks your own home. It does not look for viruses yet.
         </p>
       </section>
 
       <section className="rounded-lg border border-stone-300 bg-white p-5">
-        <h2 className="text-base font-medium">Service</h2>
+        <h2 className="text-base font-medium">{ready ? "HomeGuard is ready" : "HomeGuard is not ready"}</h2>
         {healthError && <p className="mt-3 text-sm text-red-800">{healthError}</p>}
-        {!health && !healthError && <p className="mt-3 text-sm text-stone-600">Checking the API…</p>}
+        {!health && !healthError && <p className="mt-3 text-sm text-stone-600">Checking that HomeGuard is running…</p>}
+        {health?.nmap === "missing" && (
+          <p className="mt-3 text-sm text-red-800">
+            The program that looks for devices is missing. Install Nmap, close and reopen the terminal, then start HomeGuard again.
+          </p>
+        )}
+        {health && health.nmap === "ok" && health.status === "ok" && (
+          <p className="mt-3 text-sm text-stone-600">You can look for devices on a home network you have allowed.</p>
+        )}
         {health && (
-          <dl className="mt-4 grid gap-4 sm:grid-cols-3">
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Status</dt>
-              <dd className="mt-1 text-sm">{health.status}</dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Database</dt>
-              <dd className="mt-1 text-sm">{health.database}</dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Nmap</dt>
-              <dd className="mt-1 text-sm">{health.nmap === "ok" ? "ready" : "not found"}</dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Bind</dt>
-              <dd className="mt-1 text-sm">
-                {health.api_host}:{health.api_port}
-              </dd>
-            </div>
-            <div className="sm:col-span-2">
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Allowed ranges</dt>
-              <dd className="mt-1 text-sm">{health.scope_policy.allowed_ranges.join(", ")}</dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Largest saved scope</dt>
-              <dd className="mt-1 text-sm">{health.scope_policy.max_scope}</dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Discovery size</dt>
-              <dd className="mt-1 text-sm">{health.scope_policy.scan_scope} or smaller</dd>
-            </div>
-          </dl>
+          <details className="mt-4 text-sm text-stone-600">
+            <summary className="cursor-pointer">Technical details</summary>
+            <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div>
+                <dt>App</dt>
+                <dd>{health.status === "ok" ? "Running" : "Having trouble"}</dd>
+              </div>
+              <div>
+                <dt>Saved information</dt>
+                <dd>{health.database === "ok" ? "Available" : "Unavailable"}</dd>
+              </div>
+              <div>
+                <dt>Device search</dt>
+                <dd>{health.nmap === "ok" ? "Available" : "Missing"}</dd>
+              </div>
+              <div>
+                <dt>This computer only</dt>
+                <dd>
+                  {health.api_host}:{health.api_port}
+                </dd>
+              </div>
+            </dl>
+          </details>
         )}
       </section>
 
       <section className="rounded-lg border border-stone-300 bg-white p-5">
-        <h2 className="text-base font-medium">Find devices</h2>
+        <h2 className="text-base font-medium">Devices on your Wi-Fi</h2>
         {status && !status.authenticated && (
-          <p className="mt-3 text-sm text-stone-600">Sign in on the Setup page before starting a discovery.</p>
-        )}
-        {health?.nmap === "missing" && (
-          <p className="mt-3 text-sm text-red-800">
-            Nmap was not found. Install Nmap, reopen the terminal, and start the backend again.
+          <p className="mt-3 text-sm text-stone-600">
+            <Link className="underline" to="/setup">Sign in on the Setup page</Link> before looking for devices.
           </p>
         )}
-        {networks.length === 0 && (
-          <p className="mt-3 text-sm text-stone-600">Save a home network on the Setup page first.</p>
+        {status?.authenticated && networks.length === 0 && (
+          <p className="mt-3 text-sm text-stone-600">
+            <Link className="underline" to="/setup">Choose your home Wi-Fi on the Setup page</Link> first.
+          </p>
+        )}
+        {status?.authenticated && networks.some((network) => !network.ownership_confirmed) && (
+          <p className="mt-3 text-sm text-stone-600">
+            A saved network is still waiting. On the Setup page, click “This is my home network.”
+          </p>
         )}
         <ul className="mt-4 space-y-3">
           {networks.map((network) => (
-            <li key={network.id} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <li key={network.id} className="flex flex-col items-start gap-2 border-t border-stone-200 pt-3 first:border-t-0 first:pt-0">
               <span className="text-sm">
-                {network.name} · {network.cidr}
-                {network.ownership_confirmed ? " · confirmed" : " · not confirmed"}
+                <span className="font-medium">{friendlyName(network.name)}</span>
+                <span className="mt-1 block text-stone-600">
+                  {network.cidr}
+                  {network.ownership_confirmed ? " · Allowed" : " · Not allowed yet"}
+                </span>
               </span>
               <button
                 className="w-fit rounded-md bg-stone-900 px-3 py-1.5 text-sm text-stone-50 disabled:opacity-50"
                 type="button"
-                disabled={!status?.authenticated || !network.ownership_confirmed || running || busy}
+                disabled={!status?.authenticated || !network.ownership_confirmed || running || busy || health?.nmap === "missing"}
                 onClick={() => startDiscovery(network)}
               >
-                Look for devices
+                {running ? "Looking…" : "Look for devices"}
               </button>
             </li>
           ))}
         </ul>
-        {scan && (
-          <p className="mt-4 text-sm text-stone-800">
-            Latest discovery is {scan.status}
-            {scan.status === "completed" ? ` · ${scan.host_count} device(s)` : ""}
-            {scan.error ? ` · ${scan.error}` : ""}
-          </p>
-        )}
+        {scan && <p className="mt-4 text-sm text-stone-800">{searchSummary(scan)}</p>}
         {running && (
           <button
             className="mt-3 rounded-md border border-stone-400 px-3 py-1.5 text-sm"
             type="button"
             onClick={cancelDiscovery}
           >
-            Cancel
+            Stop
           </button>
         )}
         {scanError && <p className="mt-3 text-sm text-red-800">{scanError}</p>}
         {scan?.status === "completed" && hosts.length === 0 && (
           <p className="mt-4 text-sm text-stone-600">
-            No devices answered. They may be off, or they may not use the common ports this check tries.
+            No devices answered. They may be turned off, asleep, or not answering this kind of check.
           </p>
         )}
         {hosts.length > 0 && (
-          <ul className="mt-4 divide-y divide-stone-200">
-            {hosts.map((host) => (
-              <li key={host.ip} className="py-2 text-sm">
-                {host.ip}
-                {host.hostname ? ` · ${host.hostname}` : ""}
-              </li>
-            ))}
-          </ul>
+          <div className="mt-4">
+            <h3 className="text-sm font-medium">Devices that answered</h3>
+            <ul className="mt-2 divide-y divide-stone-200">
+              {hosts.map((host) => (
+                <li key={host.ip} className="py-2 text-sm">
+                  <span className="font-medium">{host.hostname || "Unnamed device"}</span>
+                  <span className="mt-1 block text-stone-600">Address {host.ip}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </section>
 
-      <section className="rounded-lg border border-stone-300 bg-white p-5">
-        <h2 className="text-base font-medium">Check a target</h2>
+      <details className="rounded-lg border border-stone-300 bg-white p-5 text-sm">
+        <summary className="cursor-pointer text-base font-medium">Check an address before saving it</summary>
+        <p className="mt-3 text-stone-600">
+          Use this only if you want to know whether an address is a private home network. An example is 192.168.1.0/24.
+        </p>
         <form className="mt-4 flex flex-col gap-3 sm:flex-row" onSubmit={onCheck}>
-          <label className="flex-1 text-sm">
-            <span className="mb-1 block text-stone-600">IPv4 CIDR</span>
+          <label className="flex-1">
+            <span className="mb-1 block text-stone-600">Network address</span>
             <input
               className="w-full rounded-md border border-stone-300 px-3 py-2"
               value={cidr}
@@ -262,7 +274,7 @@ export function DashboardPage() {
             />
           </label>
           <button
-            className="self-end rounded-md bg-stone-900 px-4 py-2 text-sm text-stone-50 disabled:opacity-60"
+            className="self-end rounded-md bg-stone-900 px-4 py-2 text-stone-50 disabled:opacity-60"
             type="submit"
             disabled={checking}
           >
@@ -270,14 +282,60 @@ export function DashboardPage() {
           </button>
         </form>
         {result && (
-          <p className="mt-4 text-sm text-stone-800">
-            {result.cidr} is inside an RFC 1918 range and within {result.max_scope}. It contains{" "}
-            {result.num_addresses} addresses.
-            {result.host_bits_normalized ? " Host bits were normalized to the network address." : ""}
+          <p className="mt-4 text-stone-800">
+            Yes. {result.cidr} is a private home network. It covers about {result.num_addresses} addresses.
+            {result.host_bits_normalized ? " The address was adjusted to the start of that network." : ""}
           </p>
         )}
-        {checkError && <p className="mt-4 text-sm text-red-800">{checkError}</p>}
-      </section>
+        {checkError && <p className="mt-4 text-red-800">{checkError}</p>}
+      </details>
     </div>
   );
+}
+
+function friendlyName(name: string) {
+  if (name === "WiFi" || name === "Wi-Fi" || name === "WLAN") {
+    return "Wi-Fi";
+  }
+  if (name === "Ethernet") {
+    return "Ethernet cable";
+  }
+  return name;
+}
+
+function searchSummary(scan: Scan) {
+  if (scan.status === "queued" || scan.status === "running") {
+    return "Looking for devices. This can take a few minutes. Leave this page open.";
+  }
+  if (scan.status === "completed") {
+    const count = scan.host_count;
+    const label = count === 1 ? "1 device answered." : `${count} devices answered.`;
+    return `Finished. ${label}`;
+  }
+  if (scan.status === "cancelled") {
+    return "Stopped. The list may be incomplete.";
+  }
+  if (scan.status === "failed") {
+    return scan.error ? `The search did not finish. ${scan.error}` : "The search did not finish.";
+  }
+  return "No search yet.";
+}
+
+function plainScanError(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    return "The search did not start.";
+  }
+  if (error.code === "ownership_required") {
+    return "Allow this network on the Setup page before looking for devices.";
+  }
+  if (error.code === "scan_in_progress") {
+    return "A search is already running. Wait for it to finish, or stop it.";
+  }
+  if (error.code === "scan_scope_too_large") {
+    return "That network is too big to search in one go. Choose a normal home network on the Setup page.";
+  }
+  if (error.code === "nmap_missing" || error.message.toLowerCase().includes("nmap")) {
+    return "The program that looks for devices is missing. Install Nmap, then start HomeGuard again.";
+  }
+  return error.message || "The search did not start.";
 }

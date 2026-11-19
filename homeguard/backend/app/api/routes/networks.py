@@ -1,5 +1,6 @@
 """Scope validation and saved private networks."""
 
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,7 +10,7 @@ from app.api.deps import get_db, require_local_request, require_session
 from app.config import Settings, get_settings
 from app.domain.interfaces import list_scan_interfaces
 from app.domain.policy import ScopeRejected, validate_cidr
-from app.models import AuditEvent, Network, utcnow
+from app.models import Asset, AuditEvent, HostObservation, Network, Scan, utcnow
 from app.schemas import CidrBody, InterfaceOut, NetworkCreate, NetworkOut, ValidatedCidr
 
 router = APIRouter(tags=["networks"])
@@ -73,6 +74,16 @@ def create_network(
     except ScopeRejected as exc:
         raise _scope_error(exc) from exc
 
+    existing = db.query(Network).filter(Network.cidr == validated.cidr).one_or_none()
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "network_already_saved",
+                "message": "This home network is already saved. You do not need to add it again.",
+            },
+        )
+
     row = Network(
         name=body.name.strip(),
         cidr=validated.cidr,
@@ -122,6 +133,57 @@ def confirm_network(
         db.commit()
         db.refresh(row)
     return _to_out(row)
+
+
+@router.delete("/networks/{network_id}", status_code=204)
+def delete_network(
+    network_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[None, Depends(require_local_request)],
+    __: Annotated[object, Depends(require_session)],
+) -> None:
+    row = db.get(Network, network_id)
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "network_not_found", "message": "That saved network was not found."},
+        )
+    active = (
+        db.query(Scan.id)
+        .filter(Scan.network_id == row.id, Scan.status.in_(("queued", "running")))
+        .first()
+    )
+    if active is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "scan_in_progress",
+                "message": "A search is still running on this network. Stop it before removing the network.",
+            },
+        )
+    scan_ids = [scan_id for (scan_id,) in db.query(Scan.id).filter(Scan.network_id == row.id).all()]
+    xml_paths = [
+        path
+        for (path,) in db.query(Scan.xml_path).filter(Scan.network_id == row.id).all()
+        if path
+    ]
+    if scan_ids:
+        db.query(HostObservation).filter(HostObservation.scan_id.in_(scan_ids)).delete(synchronize_session=False)
+        db.query(Scan).filter(Scan.id.in_(scan_ids)).delete(synchronize_session=False)
+    db.query(Asset).filter(Asset.network_id == row.id).delete(synchronize_session=False)
+    db.query(AuditEvent).filter(AuditEvent.network_id == row.id).delete(synchronize_session=False)
+    cidr = row.cidr
+    db.delete(row)
+    db.add(
+        AuditEvent(
+            action="network_removed",
+            subject=cidr,
+            detail="The saved home network and its device list were removed.",
+        )
+    )
+    db.commit()
+    for raw_path in xml_paths:
+        Path(raw_path).unlink(missing_ok=True)
 
 
 def _to_out(row: Network) -> NetworkOut:
