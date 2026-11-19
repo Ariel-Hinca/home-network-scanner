@@ -7,6 +7,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from app.adapters.identity import identify_hosts
 from app.adapters.nmap.parser import parse_discovery_xml, parse_port_scan_xml
 from app.adapters.nmap.runner import NmapFailed, find_nmap, run_discovery, run_port_scan
 from app.config import BACKEND_ROOT, get_settings
@@ -175,6 +176,7 @@ def _execute(scan_id: int) -> None:
             _finish(db, scan, "cancelled", "")
             return
         hosts = parse_port_scan_xml(xml_path) if profile_key == "common_tcp" else parse_discovery_xml(xml_path)
+        hosts = identify_hosts(hosts, nmap_bin)
         _store_hosts(db, scan, hosts)
         scan.host_count = len(hosts)
         _finish(db, scan, "completed", "")
@@ -212,6 +214,8 @@ def _store_hosts(db: Session, scan: Scan, hosts) -> None:
                 network_id=scan.network_id,
                 ip=host.ip,
                 hostname=host.hostname,
+                mac=host.mac,
+                vendor=host.vendor,
                 first_seen=now,
                 last_seen=now,
             )
@@ -221,11 +225,17 @@ def _store_hosts(db: Session, scan: Scan, hosts) -> None:
             asset.last_seen = now
             if host.hostname:
                 asset.hostname = host.hostname
+            if host.mac:
+                asset.mac = host.mac
+            if host.vendor:
+                asset.vendor = host.vendor
         observation = HostObservation(
             scan_id=scan.id,
             asset_id=asset.id,
             ip=host.ip,
-            hostname=host.hostname,
+            hostname=asset.hostname,
+            mac=asset.mac,
+            vendor=asset.vendor,
             state="up",
             seen_at=now,
         )

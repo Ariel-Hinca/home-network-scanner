@@ -123,5 +123,8 @@ class ServiceOut(BaseModel):
 class HostOut(BaseModel):
     ip: str
     hostname: str
+    mac: str = ""
+    vendor: str = ""
+    kind: str = ""
     state: str
     services: list[ServiceOut] = []

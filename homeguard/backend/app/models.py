@@ -91,6 +91,8 @@ class Asset(Base):
     network_id: Mapped[int] = mapped_column(ForeignKey("networks.id"))
     ip: Mapped[str] = mapped_column(String(64))
     hostname: Mapped[str] = mapped_column(String(255), default="")
+    mac: Mapped[str] = mapped_column(String(32), default="")
+    vendor: Mapped[str] = mapped_column(String(255), default="")
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -103,6 +105,8 @@ class HostObservation(Base):
     asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"))
     ip: Mapped[str] = mapped_column(String(64))
     hostname: Mapped[str] = mapped_column(String(255), default="")
+    mac: Mapped[str] = mapped_column(String(32), default="")
+    vendor: Mapped[str] = mapped_column(String(255), default="")
     state: Mapped[str] = mapped_column(String(20), default="up")
     seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

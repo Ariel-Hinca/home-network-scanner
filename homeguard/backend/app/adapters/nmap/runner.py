@@ -59,6 +59,8 @@ def build_discovery_args(nmap_bin: str, cidr: str, xml_path: Path) -> list[str]:
         nmap_bin,
         "-sT",
         "-Pn",
+        # Names are looked up afterwards, and only for devices that answered.
+        # Asking DNS here would query every address, because -Pn treats them as up.
         "-n",
         "-T3",
         "--max-retries",

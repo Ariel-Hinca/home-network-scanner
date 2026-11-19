@@ -45,6 +45,7 @@ def init_db(settings: Settings) -> Engine:
 
     Base.metadata.create_all(bind=engine)
     _ensure_scan_parent_column()
+    _ensure_identity_columns()
     _seed_profiles()
     return engine
 
@@ -57,6 +58,22 @@ def _ensure_scan_parent_column() -> None:
         names = {row[1] for row in columns}
         if "parent_scan_id" not in names:
             connection.execute(text("ALTER TABLE scans ADD COLUMN parent_scan_id INTEGER"))
+
+
+def _ensure_identity_columns() -> None:
+    if engine is None:
+        return
+    with engine.begin() as connection:
+        for table in ("assets", "host_observations"):
+            _ensure_column(connection, table, "mac", "VARCHAR(32) DEFAULT ''")
+            _ensure_column(connection, table, "vendor", "VARCHAR(255) DEFAULT ''")
+
+
+def _ensure_column(connection, table: str, column: str, ddl: str) -> None:  # type: ignore[no-untyped-def]
+    rows = connection.execute(text(f"PRAGMA table_info({table})")).fetchall()
+    names = {row[1] for row in rows}
+    if column not in names:
+        connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
 
 
 def _seed_profiles() -> None:

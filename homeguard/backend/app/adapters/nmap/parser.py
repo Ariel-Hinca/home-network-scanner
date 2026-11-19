@@ -17,6 +17,8 @@ class DiscoveredHost:
     ip: str
     hostname: str
     ports: tuple[ObservedPort, ...] = ()
+    mac: str = ""
+    vendor: str = ""
 
 
 def parse_discovery_xml(path: Path) -> list[DiscoveredHost]:
@@ -41,7 +43,8 @@ def parse_discovery_xml(path: Path) -> list[DiscoveredHost]:
         if ip is None or ip in seen:
             continue
         seen.add(ip)
-        found.append(DiscoveredHost(ip=ip, hostname=_hostname(host)))
+        mac, vendor = _mac(host)
+        found.append(DiscoveredHost(ip=ip, hostname=_hostname(host), mac=mac, vendor=vendor))
     return found
 
 
@@ -57,7 +60,10 @@ def parse_port_scan_xml(path: Path) -> list[DiscoveredHost]:
         if ip is None or ip in seen:
             continue
         seen.add(ip)
-        found.append(DiscoveredHost(ip=ip, hostname=_hostname(host), ports=tuple(_ports(host))))
+        mac, vendor = _mac(host)
+        found.append(
+            DiscoveredHost(ip=ip, hostname=_hostname(host), ports=tuple(_ports(host)), mac=mac, vendor=vendor)
+        )
     return found
 
 
@@ -98,6 +104,27 @@ def _ipv4(host: ET.Element) -> str | None:
         if address.get("addrtype") == "ipv4" and address.get("addr"):
             return address.get("addr")
     return None
+
+
+def _mac(host: ET.Element) -> tuple[str, str]:
+    for address in host.findall("address"):
+        if address.get("addrtype") != "mac":
+            continue
+        mac = _format_mac(address.get("addr") or "")
+        if not mac:
+            continue
+        vendor = (address.get("vendor") or "").strip()[:255]
+        return mac, vendor
+    return "", ""
+
+
+def _format_mac(value: str) -> str:
+    hex_chars = "".join(character for character in value if character.isalnum()).upper()
+    if len(hex_chars) != 12 or any(character not in "0123456789ABCDEF" for character in hex_chars):
+        return ""
+    if hex_chars in {"000000000000", "FFFFFFFFFFFF"}:
+        return ""
+    return ":".join(hex_chars[index : index + 2] for index in range(0, 12, 2))
 
 
 def _hostname(host: ET.Element) -> str:

@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.adapters.identity import device_kind
 from app.api.deps import get_db, require_local_request, require_session
 from app.config import Settings, get_settings
 from app.domain.policy import ScopeRejected, assert_scan_size, validate_cidr
@@ -191,6 +192,8 @@ def list_hosts(
             status_code=404,
             detail={"code": "scan_not_found", "message": "That discovery was not found."},
         )
+    network = db.get(Network, scan.network_id)
+    cidr = network.cidr if network is not None else ""
     rows = (
         db.query(HostObservation)
         .filter(HostObservation.scan_id == scan.id)
@@ -205,10 +208,14 @@ def list_hosts(
             .order_by(Service.port.asc())
             .all()
         )
+        open_ports = {service.port for service in services if service.state == "open"}
         result.append(
             HostOut(
                 ip=row.ip,
                 hostname=row.hostname,
+                mac=row.mac,
+                vendor=row.vendor,
+                kind=device_kind(row.ip, cidr, open_ports),
                 state=row.state,
                 services=[
                     ServiceOut(port=service.port, protocol=service.protocol, state=service.state)

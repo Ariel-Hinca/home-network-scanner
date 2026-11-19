@@ -74,6 +74,27 @@ def test_parser_keeps_hosts_with_an_open_port(tmp_path: Path) -> None:
     assert [(host.ip, host.hostname) for host in found] == [("192.168.1.5", "printer.home")]
 
 
+def test_parser_keeps_the_network_card_company(tmp_path: Path) -> None:
+    xml_path = tmp_path / "named.xml"
+    xml_path.write_text(
+        """<?xml version="1.0"?>
+        <nmaprun>
+          <host>
+            <status state="up"/>
+            <address addr="192.168.1.40" addrtype="ipv4"/>
+            <address addr="aa-bb-cc-dd-ee-10" addrtype="mac" vendor="Petkit"/>
+            <ports><port protocol="tcp" portid="80"><state state="open"/></port></ports>
+          </host>
+        </nmaprun>
+        """,
+        encoding="utf-8",
+    )
+    found = parse_discovery_xml(xml_path)
+    assert found[0].hostname == ""
+    assert found[0].mac == "AA:BB:CC:DD:EE:10"
+    assert found[0].vendor == "Petkit"
+
+
 def test_scan_size_rejects_a_16() -> None:
     try:
         assert_scan_size(16)

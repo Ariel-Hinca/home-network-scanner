@@ -66,6 +66,9 @@ export type Scan = {
 export type DiscoveredHost = {
   ip: string;
   hostname: string;
+  mac: string;
+  vendor: string;
+  kind: string;
   state: string;
   services?: { port: number; protocol: string; state: string }[];
 };

@@ -104,6 +104,7 @@ DISCOVERY_XML = """<?xml version="1.0"?>
   <host>
     <status state="up"/>
     <address addr="192.168.1.20" addrtype="ipv4"/>
+    <address addr="AA:BB:CC:11:22:33" addrtype="mac" vendor="Apple"/>
     <hostnames><hostname name="laptop.home" type="PTR"/></hostnames>
     <ports><port protocol="tcp" portid="80"><state state="open"/></port></ports>
   </host>
@@ -147,6 +148,7 @@ def test_discovery_records_only_devices_that_answered(client: TestClient, monkey
 
     monkeypatch.setattr("app.workers.scan_worker.find_nmap", lambda _path: "nmap-test")
     monkeypatch.setattr("app.workers.scan_worker.run_discovery", fake)
+    monkeypatch.setattr("app.workers.scan_worker.identify_hosts", lambda hosts, _nmap: hosts)
     _sign_in(client)
     network_id = _save(client)
     confirmed = client.post(f"/api/networks/{network_id}/confirm", headers=LOCAL)
@@ -164,7 +166,17 @@ def test_discovery_records_only_devices_that_answered(client: TestClient, monkey
     assert finished["host_count"] == 1
     hosts = client.get(f"/api/scans/{finished['id']}/hosts")
     assert hosts.status_code == 200
-    assert hosts.json() == [{"ip": "192.168.1.20", "hostname": "laptop.home", "state": "up", "services": []}]
+    assert hosts.json() == [
+        {
+            "ip": "192.168.1.20",
+            "hostname": "laptop.home",
+            "mac": "AA:BB:CC:11:22:33",
+            "vendor": "Apple",
+            "kind": "",
+            "state": "up",
+            "services": [],
+        }
+    ]
 
 
 def test_discovery_requires_confirmation(client: TestClient) -> None:
@@ -255,6 +267,7 @@ def test_port_check_records_open_and_closed_ports(client: TestClient, monkeypatc
     monkeypatch.setattr("app.workers.scan_worker.find_nmap", lambda _path: "nmap-test")
     monkeypatch.setattr("app.workers.scan_worker.run_discovery", discover)
     monkeypatch.setattr("app.workers.scan_worker.run_port_scan", ports)
+    monkeypatch.setattr("app.workers.scan_worker.identify_hosts", lambda hosts, _nmap: hosts)
     _sign_in(client)
     network_id = _save(client)
     assert client.post(f"/api/networks/{network_id}/confirm", headers=LOCAL).status_code == 200
@@ -266,6 +279,9 @@ def test_port_check_records_open_and_closed_ports(client: TestClient, monkeypatc
     assert finished["status"] == "completed"
     assert finished["profile"] == "common_tcp"
     hosts = client.get(f"/api/scans/{finished['id']}/hosts").json()
+    assert hosts[0]["hostname"] == "laptop.home"
+    assert hosts[0]["vendor"] == "Apple"
+    assert hosts[0]["mac"] == "AA:BB:CC:11:22:33"
     assert hosts[0]["services"] == [
         {"port": 23, "protocol": "tcp", "state": "closed"},
         {"port": 80, "protocol": "tcp", "state": "open"},

@@ -71,7 +71,7 @@ curl http://127.0.0.1:8000/api/health
 
 `pytest` should pass. Health should show `"nmap": "ok"` and `"scan_scope": "/24"`. If `nmap` is `missing`, install Nmap and start the backend again.
 
-Then open `http://127.0.0.1:5173`, create or sign in with the passphrase, save your suggested `/24`, click **This is my home network**, and on Home click **Look for devices**. Wait until it says finished and lists devices. A second click while it is running should be refused. **Stop** should stop it.
+Then open `http://127.0.0.1:5173`, create or sign in with the passphrase, save your suggested `/24`, click **This is my home network**, and on Home click **Look for devices**. Wait until it says finished and lists devices. A device that shares a name shows that name. A device that does not shows the company on its network card, or stays unnamed. A second click while it is running should be refused. **Stop** should stop it.
 
 ## Check phase 2
 
@@ -85,4 +85,4 @@ cd C:\Users\hinca\OneDrive\Bureaublad\CURSOR\home-network-scanner\homeguard\back
 pytest
 ```
 
-You want every test passed. Then, on the website, after a finished device search, click **Check common ports**. Wait until it says the devices were checked. Under each device, open ports are listed, and the other checked ports are counted as closed or unanswered. Clicking **Check common ports** before any device has been found should say to look for devices first.
+You want every test passed. Then, on the website, after a finished device search, click **Check common ports**. Wait until it says the devices were checked. Under each device, open ports are listed, and the other checked ports are counted as closed or unanswered. A camera, printer, television, or Windows computer can pick up a short hint from those ports. A feeder or a light usually will not. Clicking **Check common ports** before any device has been found should say to look for devices first.

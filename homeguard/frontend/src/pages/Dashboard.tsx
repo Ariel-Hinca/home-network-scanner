@@ -151,6 +151,7 @@ export function DashboardPage() {
         <h1 className="text-2xl font-medium">Your home network</h1>
         <p className="mt-2 max-w-2xl text-sm text-stone-600">
           HomeGuard looks for phones, computers, printers, and the router on the Wi-Fi you allowed.
+          It shows a name when the device or your router shares one, and otherwise the company on the network card.
           It can then check a fixed list of common ports on those devices. It does not look for viruses yet.
         </p>
       </section>
@@ -261,11 +262,20 @@ export function DashboardPage() {
         {hosts.length > 0 && (
           <div className="mt-4">
             <h3 className="text-sm font-medium">Devices that answered</h3>
+            <p className="mt-1 text-sm text-stone-600">
+              A shared name is shown when one was found. Otherwise you see the company printed on the network card.
+              After a port check, some devices also get a short hint, such as camera or printer.
+            </p>
             <ul className="mt-2 divide-y divide-stone-200">
               {hosts.map((host) => (
                 <li key={host.ip} className="py-2 text-sm">
-                  <span className="font-medium">{host.hostname || "Unnamed device"}</span>
+                  <span className="font-medium">{deviceTitle(host)}</span>
                   <span className="mt-1 block text-stone-600">Address {host.ip}</span>
+                  {deviceNotes(host).map((note) => (
+                    <span key={note} className="mt-1 block text-stone-600">
+                      {note}
+                    </span>
+                  ))}
                   <PortSummary services={host.services ?? []} />
                 </li>
               ))}
@@ -308,6 +318,87 @@ export function DashboardPage() {
       </details>
     </div>
   );
+}
+
+function deviceTitle(host: DiscoveredHost) {
+  if (host.hostname) {
+    return host.hostname;
+  }
+  const noun = kindNoun(host.kind);
+  if (host.vendor) {
+    if (!noun || host.vendor.toLowerCase().includes(noun.toLowerCase())) {
+      return host.vendor;
+    }
+    if (host.kind === "apple" && /apple/i.test(host.vendor)) {
+      return host.vendor;
+    }
+    return `${host.vendor} ${noun}`;
+  }
+  if (host.kind === "router") {
+    return "Home router";
+  }
+  if (noun) {
+    return noun.charAt(0).toUpperCase() + noun.slice(1);
+  }
+  return "Unnamed device";
+}
+
+function deviceNotes(host: DiscoveredHost) {
+  const notes: string[] = [];
+  if (host.vendor && host.hostname) {
+    notes.push(`Maker ${host.vendor}`);
+  }
+  if (!host.hostname && host.vendor) {
+    notes.push("This name is the company on the network card.");
+  }
+  if (host.mac) {
+    notes.push(`Network card ${host.mac}`);
+  }
+  if (host.hostname && host.kind) {
+    notes.push(kindNote(host.kind));
+  }
+  if (!host.hostname && !host.vendor && !host.kind) {
+    notes.push("This device did not share a name.");
+  }
+  return notes;
+}
+
+function kindNoun(kind: string) {
+  switch (kind) {
+    case "router":
+      return "router";
+    case "camera":
+      return "camera";
+    case "printer":
+      return "printer";
+    case "tv":
+      return "television";
+    case "computer":
+      return "computer";
+    case "apple":
+      return "Apple device";
+    default:
+      return "";
+  }
+}
+
+function kindNote(kind: string) {
+  switch (kind) {
+    case "router":
+      return "This address is usually the home router.";
+    case "camera":
+      return "The open ports are common for a camera.";
+    case "printer":
+      return "The open ports are common for a printer.";
+    case "tv":
+      return "The open ports are common for a television.";
+    case "computer":
+      return "The open ports are common for a Windows computer.";
+    case "apple":
+      return "The open ports are common for an Apple device.";
+    default:
+      return "";
+  }
 }
 
 function friendlyName(name: string) {
