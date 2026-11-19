@@ -44,8 +44,19 @@ def init_db(settings: Settings) -> Engine:
         cursor.close()
 
     Base.metadata.create_all(bind=engine)
+    _ensure_scan_parent_column()
     _seed_profiles()
     return engine
+
+
+def _ensure_scan_parent_column() -> None:
+    if engine is None:
+        return
+    with engine.begin() as connection:
+        columns = connection.execute(text("PRAGMA table_info(scans)")).fetchall()
+        names = {row[1] for row in columns}
+        if "parent_scan_id" not in names:
+            connection.execute(text("ALTER TABLE scans ADD COLUMN parent_scan_id INTEGER"))
 
 
 def _seed_profiles() -> None:
@@ -62,7 +73,15 @@ def _seed_profiles() -> None:
                     port_set="common-home",
                 )
             )
-            db.commit()
+        if db.query(ScanProfile).filter(ScanProfile.key == "common_tcp").one_or_none() is None:
+            db.add(
+                ScanProfile(
+                    key="common_tcp",
+                    name="Common ports",
+                    port_set="top-100-tcp",
+                )
+            )
+        db.commit()
     finally:
         db.close()
 

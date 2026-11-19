@@ -7,11 +7,11 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.adapters.nmap.parser import parse_discovery_xml
-from app.adapters.nmap.runner import NmapFailed, find_nmap, run_discovery
+from app.adapters.nmap.parser import parse_discovery_xml, parse_port_scan_xml
+from app.adapters.nmap.runner import NmapFailed, find_nmap, run_discovery, run_port_scan
 from app.config import BACKEND_ROOT, get_settings
 from app.database import get_session_factory
-from app.models import Asset, AuditEvent, HostObservation, Network, Scan, ScanProfile, utcnow
+from app.models import Asset, AuditEvent, HostObservation, Network, Scan, ScanProfile, Service, utcnow
 
 ACTIVE_STATUSES = ("queued", "running")
 _stop = threading.Event()
@@ -127,9 +127,15 @@ def _execute(scan_id: int) -> None:
         if cancel_event_for(scan_id).is_set():
             _finish(db, scan, "cancelled", "")
             return
+        profile = db.get(ScanProfile, scan.profile_id)
+        profile_key = profile.key if profile is not None else "discovery"
         nmap_bin = find_nmap(settings.nmap_path)
         if nmap_bin is None:
             _finish(db, scan, "failed", "Nmap is not installed, or HomeGuard cannot find it.")
+            return
+        targets = _target_addresses(db, scan) if profile_key == "common_tcp" else []
+        if profile_key == "common_tcp" and not targets:
+            _finish(db, scan, "failed", "No devices were saved from the earlier search.")
             return
         xml_path = _xml_path(scan_id)
         scan.xml_path = str(xml_path)
@@ -140,13 +146,22 @@ def _execute(scan_id: int) -> None:
         db.close()
 
     try:
-        outcome = run_discovery(
-            nmap_bin,
-            cidr,
-            xml_path,
-            cancel_event_for(scan_id),
-            timeout,
-        )
+        if profile_key == "common_tcp":
+            outcome = run_port_scan(
+                nmap_bin,
+                targets,
+                xml_path,
+                cancel_event_for(scan_id),
+                timeout,
+            )
+        else:
+            outcome = run_discovery(
+                nmap_bin,
+                cidr,
+                xml_path,
+                cancel_event_for(scan_id),
+                timeout,
+            )
     except NmapFailed as exc:
         _mark_failed(scan_id, exc.message)
         return
@@ -159,15 +174,20 @@ def _execute(scan_id: int) -> None:
         if outcome == "cancelled" or cancel_event_for(scan_id).is_set():
             _finish(db, scan, "cancelled", "")
             return
-        hosts = parse_discovery_xml(xml_path)
+        hosts = parse_port_scan_xml(xml_path) if profile_key == "common_tcp" else parse_discovery_xml(xml_path)
         _store_hosts(db, scan, hosts)
         scan.host_count = len(hosts)
         _finish(db, scan, "completed", "")
+        detail = (
+            f"Port check finished for {len(hosts)} device(s)."
+            if profile_key == "common_tcp"
+            else f"{len(hosts)} device(s) answered."
+        )
         db.add(
             AuditEvent(
                 action="scan_completed",
                 subject=cidr,
-                detail=f"{len(hosts)} device(s) answered.",
+                detail=detail,
                 network_id=scan.network_id,
             )
         )
@@ -201,16 +221,37 @@ def _store_hosts(db: Session, scan: Scan, hosts) -> None:
             asset.last_seen = now
             if host.hostname:
                 asset.hostname = host.hostname
-        db.add(
-            HostObservation(
-                scan_id=scan.id,
-                asset_id=asset.id,
-                ip=host.ip,
-                hostname=host.hostname,
-                state="up",
-                seen_at=now,
-            )
+        observation = HostObservation(
+            scan_id=scan.id,
+            asset_id=asset.id,
+            ip=host.ip,
+            hostname=host.hostname,
+            state="up",
+            seen_at=now,
         )
+        db.add(observation)
+        db.flush()
+        for port in host.ports:
+            db.add(
+                Service(
+                    observation_id=observation.id,
+                    port=port.port,
+                    protocol=port.protocol,
+                    state=port.state,
+                )
+            )
+
+
+def _target_addresses(db: Session, scan: Scan) -> list[str]:
+    if scan.parent_scan_id is None:
+        return []
+    rows = (
+        db.query(HostObservation.ip)
+        .filter(HostObservation.scan_id == scan.parent_scan_id)
+        .order_by(HostObservation.ip.asc())
+        .all()
+    )
+    return [ip for (ip,) in rows]
 
 
 def _finish(db: Session, scan: Scan, status: str, error: str) -> None:

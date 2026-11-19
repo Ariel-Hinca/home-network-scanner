@@ -80,6 +80,7 @@ class Scan(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    parent_scan_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class Asset(Base):
@@ -104,3 +105,13 @@ class HostObservation(Base):
     hostname: Mapped[str] = mapped_column(String(255), default="")
     state: Mapped[str] = mapped_column(String(20), default="up")
     seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Service(Base):
+    __tablename__ = "services"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    observation_id: Mapped[int] = mapped_column(ForeignKey("host_observations.id"))
+    port: Mapped[int] = mapped_column(Integer)
+    protocol: Mapped[str] = mapped_column(String(8), default="tcp")
+    state: Mapped[str] = mapped_column(String(20))

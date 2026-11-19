@@ -12,6 +12,7 @@ export function DashboardPage() {
   const [checking, setChecking] = useState(false);
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [networks, setNetworks] = useState<Network[]>([]);
+  const [scans, setScans] = useState<Scan[]>([]);
   const [scan, setScan] = useState<Scan | null>(null);
   const [hosts, setHosts] = useState<DiscoveredHost[]>([]);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -48,8 +49,9 @@ export function DashboardPage() {
         }
         setStatus(nextStatus);
         setNetworks(nextNetworks);
-        const scans = nextStatus.authenticated ? await api<Scan[]>("/api/scans") : [];
-        const latest = scans[0] ?? null;
+        const nextScans = nextStatus.authenticated ? await api<Scan[]>("/api/scans") : [];
+        const latest = nextScans[0] ?? null;
+        setScans(nextScans);
         setScan(latest);
         if (latest && (latest.status === "completed" || latest.status === "cancelled")) {
           setHosts(await api<DiscoveredHost[]>(`/api/scans/${latest.id}/hosts`));
@@ -108,16 +110,17 @@ export function DashboardPage() {
     }
   }
 
-  async function startDiscovery(network: Network) {
+  async function startScan(network: Network, profile: "discovery" | "common_tcp") {
     setBusy(true);
     setScanError(null);
     setHosts([]);
     try {
       const started = await api<Scan>("/api/scans", {
         method: "POST",
-        body: JSON.stringify({ network_id: network.id, profile: "discovery" }),
+        body: JSON.stringify({ network_id: network.id, profile }),
       });
       setScan(started);
+      setScans((current) => [started, ...current]);
     } catch (error) {
       setScanError(plainScanError(error));
       setBusy(false);
@@ -137,6 +140,9 @@ export function DashboardPage() {
   }
 
   const running = scan?.status === "queued" || scan?.status === "running";
+  const canCheckPorts = scans.some(
+    (item) => item.profile === "discovery" && item.status === "completed" && item.host_count > 0,
+  );
   const ready = health?.status === "ok" && health.database === "ok" && health.nmap === "ok";
 
   return (
@@ -145,7 +151,7 @@ export function DashboardPage() {
         <h1 className="text-2xl font-medium">Your home network</h1>
         <p className="mt-2 max-w-2xl text-sm text-stone-600">
           HomeGuard looks for phones, computers, printers, and the router on the Wi-Fi you allowed.
-          It only checks your own home. It does not look for viruses yet.
+          It can then check a fixed list of common ports on those devices. It does not look for viruses yet.
         </p>
       </section>
 
@@ -215,14 +221,24 @@ export function DashboardPage() {
                   {network.ownership_confirmed ? " · Allowed" : " · Not allowed yet"}
                 </span>
               </span>
-              <button
-                className="w-fit rounded-md bg-stone-900 px-3 py-1.5 text-sm text-stone-50 disabled:opacity-50"
-                type="button"
-                disabled={!status?.authenticated || !network.ownership_confirmed || running || busy || health?.nmap === "missing"}
-                onClick={() => startDiscovery(network)}
-              >
-                {running ? "Looking…" : "Look for devices"}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="w-fit rounded-md bg-stone-900 px-3 py-1.5 text-sm text-stone-50 disabled:opacity-50"
+                  type="button"
+                  disabled={!status?.authenticated || !network.ownership_confirmed || running || busy || health?.nmap === "missing"}
+                  onClick={() => startScan(network, "discovery")}
+                >
+                  {running && scan?.profile === "discovery" ? "Looking…" : "Look for devices"}
+                </button>
+                <button
+                  className="w-fit rounded-md border border-stone-400 px-3 py-1.5 text-sm disabled:opacity-50"
+                  type="button"
+                  disabled={!status?.authenticated || !network.ownership_confirmed || !canCheckPorts || running || busy || health?.nmap === "missing"}
+                  onClick={() => startScan(network, "common_tcp")}
+                >
+                  {running && scan?.profile === "common_tcp" ? "Checking…" : "Check common ports"}
+                </button>
+              </div>
             </li>
           ))}
         </ul>
@@ -250,6 +266,7 @@ export function DashboardPage() {
                 <li key={host.ip} className="py-2 text-sm">
                   <span className="font-medium">{host.hostname || "Unnamed device"}</span>
                   <span className="mt-1 block text-stone-600">Address {host.ip}</span>
+                  <PortSummary services={host.services ?? []} />
                 </li>
               ))}
             </ul>
@@ -303,12 +320,33 @@ function friendlyName(name: string) {
   return name;
 }
 
+function PortSummary({ services }: { services: { port: number; state: string }[] }) {
+  if (services.length === 0) {
+    return null;
+  }
+  const open = services.filter((service) => service.state === "open").map((service) => service.port);
+  const closed = services.filter((service) => service.state !== "open").length;
+  return (
+    <span className="mt-1 block text-stone-600">
+      {open.length > 0 ? `Open ports: ${open.join(", ")}.` : "No common ports were open."}
+      {closed > 0 ? ` ${closed} other checked ports were closed or did not answer.` : ""}
+    </span>
+  );
+}
+
 function searchSummary(scan: Scan) {
+  const ports = scan.profile === "common_tcp";
   if (scan.status === "queued" || scan.status === "running") {
-    return "Looking for devices. This can take a few minutes. Leave this page open.";
+    return ports
+      ? "Checking common ports on the devices already found. This can take longer than finding devices. Leave this page open."
+      : "Looking for devices. This can take a few minutes. Leave this page open.";
   }
   if (scan.status === "completed") {
     const count = scan.host_count;
+    if (ports) {
+      const label = count === 1 ? "1 device was checked." : `${count} devices were checked.`;
+      return `Finished. ${label} Open ports are listed under each device.`;
+    }
     const label = count === 1 ? "1 device answered." : `${count} devices answered.`;
     return `Finished. ${label}`;
   }
@@ -330,6 +368,9 @@ function plainScanError(error: unknown) {
   }
   if (error.code === "scan_in_progress") {
     return "A search is already running. Wait for it to finish, or stop it.";
+  }
+  if (error.code === "no_devices") {
+    return "Look for devices first. The port check only runs on devices that already answered.";
   }
   if (error.code === "scan_scope_too_large") {
     return "That network is too big to search in one go. Choose a normal home network on the Setup page.";

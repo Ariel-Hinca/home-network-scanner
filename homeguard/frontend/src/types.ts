@@ -67,4 +67,5 @@ export type DiscoveredHost = {
   ip: string;
   hostname: string;
   state: string;
+  services?: { port: number; protocol: string; state: string }[];
 };

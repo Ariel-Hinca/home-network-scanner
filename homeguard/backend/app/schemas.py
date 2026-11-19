@@ -114,7 +114,14 @@ class ScanOut(BaseModel):
     finished_at: datetime | None
 
 
+class ServiceOut(BaseModel):
+    port: int
+    protocol: str
+    state: str
+
+
 class HostOut(BaseModel):
     ip: str
     hostname: str
     state: str
+    services: list[ServiceOut] = []

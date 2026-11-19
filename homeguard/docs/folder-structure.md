@@ -28,7 +28,7 @@ homeguard/
           setup.py             passphrase and session
           networks.py          scope check, interfaces, saved networks
           profiles.py          GET /api/profiles
-          scans.py             discovery start, status, cancel, and hosts
+          scans.py             device search and common-port check
           audit.py             recent local events
       domain/
         policy.py              RFC 1918, /16 save cap, /24 discovery cap

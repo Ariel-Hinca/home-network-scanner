@@ -164,7 +164,7 @@ def test_discovery_records_only_devices_that_answered(client: TestClient, monkey
     assert finished["host_count"] == 1
     hosts = client.get(f"/api/scans/{finished['id']}/hosts")
     assert hosts.status_code == 200
-    assert hosts.json() == [{"ip": "192.168.1.20", "hostname": "laptop.home", "state": "up"}]
+    assert hosts.json() == [{"ip": "192.168.1.20", "hostname": "laptop.home", "state": "up", "services": []}]
 
 
 def test_discovery_requires_confirmation(client: TestClient) -> None:
@@ -216,6 +216,60 @@ def test_second_discovery_is_rejected_while_one_is_running(client: TestClient, m
     cancelled = client.post(f"/api/scans/{first.json()['id']}/cancel", headers=LOCAL)
     assert cancelled.status_code == 200
     assert _wait(client, first.json()["id"])["status"] == "cancelled"
+
+
+PORT_XML = """<?xml version="1.0"?>
+<nmaprun>
+  <host>
+    <status state="up"/>
+    <address addr="192.168.1.20" addrtype="ipv4"/>
+    <hostnames><hostname name="laptop.home" type="PTR"/></hostnames>
+    <ports>
+      <port protocol="tcp" portid="80"><state state="open"/></port>
+      <port protocol="tcp" portid="23"><state state="closed"/></port>
+    </ports>
+  </host>
+</nmaprun>
+"""
+
+
+def test_port_check_requires_a_finished_device_search(client: TestClient) -> None:
+    _sign_in(client)
+    network_id = _save(client)
+    assert client.post(f"/api/networks/{network_id}/confirm", headers=LOCAL).status_code == 200
+    started = client.post("/api/scans", json={"network_id": network_id, "profile": "common_tcp"}, headers=LOCAL)
+    assert started.status_code == 409
+    assert started.json()["detail"]["code"] == "no_devices"
+
+
+def test_port_check_records_open_and_closed_ports(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def discover(_nmap_bin, _cidr, xml_path: Path, _cancel_event, _timeout_seconds, _on_process=None):
+        xml_path.write_text(DISCOVERY_XML, encoding="utf-8")
+        return "completed"
+
+    def ports(_nmap_bin, ips, xml_path: Path, _cancel_event, _timeout_seconds):
+        assert ips == ["192.168.1.20"]
+        xml_path.write_text(PORT_XML, encoding="utf-8")
+        return "completed"
+
+    monkeypatch.setattr("app.workers.scan_worker.find_nmap", lambda _path: "nmap-test")
+    monkeypatch.setattr("app.workers.scan_worker.run_discovery", discover)
+    monkeypatch.setattr("app.workers.scan_worker.run_port_scan", ports)
+    _sign_in(client)
+    network_id = _save(client)
+    assert client.post(f"/api/networks/{network_id}/confirm", headers=LOCAL).status_code == 200
+    found = client.post("/api/scans", json={"network_id": network_id, "profile": "discovery"}, headers=LOCAL)
+    assert _wait(client, found.json()["id"])["status"] == "completed"
+    started = client.post("/api/scans", json={"network_id": network_id, "profile": "common_tcp"}, headers=LOCAL)
+    assert started.status_code == 201
+    finished = _wait(client, started.json()["id"])
+    assert finished["status"] == "completed"
+    assert finished["profile"] == "common_tcp"
+    hosts = client.get(f"/api/scans/{finished['id']}/hosts").json()
+    assert hosts[0]["services"] == [
+        {"port": 23, "protocol": "tcp", "state": "closed"},
+        {"port": 80, "protocol": "tcp", "state": "open"},
+    ]
 
 
 def test_duplicate_network_is_rejected_and_a_saved_network_can_be_removed(client: TestClient) -> None:

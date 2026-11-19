@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db, require_local_request, require_session
 from app.config import Settings, get_settings
 from app.domain.policy import ScopeRejected, assert_scan_size, validate_cidr
-from app.models import AuditEvent, HostObservation, Network, Scan, utcnow
-from app.schemas import HostOut, ScanCreate, ScanOut
+from app.models import AuditEvent, HostObservation, Network, Scan, Service, utcnow
+from app.schemas import HostOut, ScanCreate, ScanOut, ServiceOut
 from app.workers.scan_worker import active_scan_exists, cancel_event_for, profile_by_key, request_cancel
 
 router = APIRouter(prefix="/scans", tags=["scans"])
@@ -53,12 +53,12 @@ def start_scan(
     _: Annotated[None, Depends(require_local_request)],
     __: Annotated[object, Depends(require_session)],
 ) -> ScanOut:
-    if body.profile != "discovery":
+    if body.profile not in {"discovery", "common_tcp"}:
         raise HTTPException(
             status_code=400,
             detail={
                 "code": "unknown_profile",
-                "message": "Phase 1 can only run the discovery profile.",
+                "message": "That check is not available.",
             },
         )
     network = db.get(Network, body.network_id)
@@ -86,21 +86,33 @@ def start_scan(
             status_code=409,
             detail={
                 "code": "scan_in_progress",
-                "message": "A discovery is already running. Wait for it to finish or cancel it.",
+                "message": "A check is already running. Wait for it to finish or stop it.",
             },
         )
-    profile = profile_by_key(db, "discovery")
+    profile = profile_by_key(db, body.profile)
     if profile is None:
         raise HTTPException(
             status_code=500,
-            detail={"code": "profile_missing", "message": "The discovery profile is not installed."},
+            detail={"code": "profile_missing", "message": "That check is not installed."},
         )
+    parent_scan_id = None
+    if body.profile == "common_tcp":
+        parent_scan_id = _latest_discovery_id(db, network.id)
+        if parent_scan_id is None:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "no_devices",
+                    "message": "Look for devices first. Port checks run only on devices that already answered.",
+                },
+            )
     scan = Scan(
         network_id=network.id,
         profile_id=profile.id,
         status="queued",
         error="",
         host_count=0,
+        parent_scan_id=parent_scan_id,
         created_at=utcnow(),
     )
     db.add(scan)
@@ -109,14 +121,14 @@ def start_scan(
         AuditEvent(
             action="scan_started",
             subject=network.cidr,
-            detail="Discovery queued.",
+            detail="Port check queued." if body.profile == "common_tcp" else "Discovery queued.",
             network_id=network.id,
         )
     )
     db.commit()
     db.refresh(scan)
     cancel_event_for(scan.id)
-    return _to_out(scan, "discovery")
+    return _to_out(scan, body.profile)
 
 
 @router.get("/{scan_id}", response_model=ScanOut)
@@ -185,4 +197,44 @@ def list_hosts(
         .order_by(HostObservation.ip.asc())
         .all()
     )
-    return [HostOut(ip=row.ip, hostname=row.hostname, state=row.state) for row in rows]
+    result: list[HostOut] = []
+    for row in rows:
+        services = (
+            db.query(Service)
+            .filter(Service.observation_id == row.id)
+            .order_by(Service.port.asc())
+            .all()
+        )
+        result.append(
+            HostOut(
+                ip=row.ip,
+                hostname=row.hostname,
+                state=row.state,
+                services=[
+                    ServiceOut(port=service.port, protocol=service.protocol, state=service.state)
+                    for service in services
+                ],
+            )
+        )
+    return result
+
+
+def _latest_discovery_id(db: Session, network_id: int) -> int | None:
+    profile = profile_by_key(db, "discovery")
+    if profile is None:
+        return None
+    scan = (
+        db.query(Scan)
+        .filter(
+            Scan.network_id == network_id,
+            Scan.profile_id == profile.id,
+            Scan.status == "completed",
+            Scan.host_count > 0,
+        )
+        .order_by(Scan.id.desc())
+        .first()
+    )
+    if scan is None:
+        return None
+    has_host = db.query(HostObservation.id).filter(HostObservation.scan_id == scan.id).first()
+    return scan.id if has_host is not None else None

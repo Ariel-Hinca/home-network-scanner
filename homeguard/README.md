@@ -71,4 +71,18 @@ curl http://127.0.0.1:8000/api/health
 
 `pytest` should pass. Health should show `"nmap": "ok"` and `"scan_scope": "/24"`. If `nmap` is `missing`, install Nmap and start the backend again.
 
-Then open `http://127.0.0.1:5173`, create or sign in with the passphrase, save your suggested `/24`, click **Confirm this network**, and on the dashboard click **Look for devices**. The status should move to `running`, then `completed`, with a list of devices that answered. A second click while it is running should be refused. **Cancel** should stop it.
+Then open `http://127.0.0.1:5173`, create or sign in with the passphrase, save your suggested `/24`, click **This is my home network**, and on Home click **Look for devices**. Wait until it says finished and lists devices. A second click while it is running should be refused. **Stop** should stop it.
+
+## Check phase 2
+
+Phase 2 checks a fixed list of 100 common ports on devices that already answered. It does not let you type your own port list.
+
+With the backend running and the virtualenv active:
+
+```powershell
+cd C:\Users\hinca\OneDrive\Bureaublad\CURSOR\home-network-scanner\homeguard\backend
+.\.venv\Scripts\Activate.ps1
+pytest
+```
+
+You want every test passed. Then, on the website, after a finished device search, click **Check common ports**. Wait until it says the devices were checked. Under each device, open ports are listed, and the other checked ports are counted as closed or unanswered. Clicking **Check common ports** before any device has been found should say to look for devices first.

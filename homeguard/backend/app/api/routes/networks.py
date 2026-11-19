@@ -10,7 +10,7 @@ from app.api.deps import get_db, require_local_request, require_session
 from app.config import Settings, get_settings
 from app.domain.interfaces import list_scan_interfaces
 from app.domain.policy import ScopeRejected, validate_cidr
-from app.models import Asset, AuditEvent, HostObservation, Network, Scan, utcnow
+from app.models import Asset, AuditEvent, HostObservation, Network, Scan, Service, utcnow
 from app.schemas import CidrBody, InterfaceOut, NetworkCreate, NetworkOut, ValidatedCidr
 
 router = APIRouter(tags=["networks"])
@@ -168,6 +168,12 @@ def delete_network(
         if path
     ]
     if scan_ids:
+        observation_ids = [
+            observation_id
+            for (observation_id,) in db.query(HostObservation.id).filter(HostObservation.scan_id.in_(scan_ids)).all()
+        ]
+        if observation_ids:
+            db.query(Service).filter(Service.observation_id.in_(observation_ids)).delete(synchronize_session=False)
         db.query(HostObservation).filter(HostObservation.scan_id.in_(scan_ids)).delete(synchronize_session=False)
         db.query(Scan).filter(Scan.id.in_(scan_ids)).delete(synchronize_session=False)
     db.query(Asset).filter(Asset.network_id == row.id).delete(synchronize_session=False)
