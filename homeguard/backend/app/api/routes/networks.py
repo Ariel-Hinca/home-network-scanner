@@ -96,6 +96,34 @@ def create_network(
     return _to_out(row)
 
 
+@router.post("/networks/{network_id}/confirm", response_model=NetworkOut)
+def confirm_network(
+    network_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[None, Depends(require_local_request)],
+    __: Annotated[object, Depends(require_session)],
+) -> NetworkOut:
+    row = db.get(Network, network_id)
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "network_not_found", "message": "That saved network was not found."},
+        )
+    if row.ownership_confirmed_at is None:
+        row.ownership_confirmed_at = utcnow()
+        db.add(
+            AuditEvent(
+                action="network_confirmed",
+                subject=row.cidr,
+                detail="Operator confirmed this network may be discovered.",
+                network_id=row.id,
+            )
+        )
+        db.commit()
+        db.refresh(row)
+    return _to_out(row)
+
+
 def _to_out(row: Network) -> NetworkOut:
     return NetworkOut(
         id=row.id,

@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.config import get_settings
 from app.database import init_db
+from app.workers.scan_worker import start_worker, stop_worker
 
 
 def create_app() -> FastAPI:
@@ -16,7 +17,9 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         init_db(settings)
+        start_worker()
         yield
+        stop_worker()
 
     app = FastAPI(
         title=settings.app_name,

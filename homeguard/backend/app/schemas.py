@@ -15,6 +15,7 @@ class ScopePolicy(BaseModel):
     allowed_ranges: list[str]
     max_scope: str
     default_scope: str
+    scan_scope: str
 
 
 class HealthResponse(BaseModel):
@@ -22,6 +23,7 @@ class HealthResponse(BaseModel):
     service: str
     version: str
     database: str
+    nmap: str
     api_host: str
     api_port: int
     scope_policy: ScopePolicy
@@ -87,3 +89,32 @@ class AuditOut(BaseModel):
     detail: str
 
     model_config = {"from_attributes": True}
+
+
+class ProfileOut(BaseModel):
+    key: str
+    name: str
+    port_set: str
+
+
+class ScanCreate(BaseModel):
+    network_id: int
+    profile: str = "discovery"
+
+
+class ScanOut(BaseModel):
+    id: int
+    network_id: int
+    profile: str
+    status: str
+    error: str
+    host_count: int
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+
+
+class HostOut(BaseModel):
+    ip: str
+    hostname: str
+    state: str

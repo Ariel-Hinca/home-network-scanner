@@ -56,6 +56,18 @@ export function SetupPage() {
     }
   }
 
+  async function confirmNetwork(network: Network) {
+    setError(null);
+    setMessage(null);
+    try {
+      await api<Network>(`/api/networks/${network.id}/confirm`, { method: "POST" });
+      setMessage(`${network.cidr} is confirmed. You can look for devices from the dashboard.`);
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof ApiError ? reason.message : "The network was not confirmed.");
+    }
+  }
+
   async function saveSuggested(item: InterfaceInfo) {
     if (!item.suggested_scan_cidr) {
       return;
@@ -71,7 +83,7 @@ export function SetupPage() {
           interface_name: item.name,
         }),
       });
-      setMessage(`Saved ${item.suggested_scan_cidr}. It is not confirmed for scanning yet.`);
+      setMessage(`Saved ${item.suggested_scan_cidr}. Confirm it before looking for devices.`);
       await refresh();
     } catch (reason) {
       setError(reason instanceof ApiError ? reason.message : "The network was not saved.");
@@ -84,7 +96,7 @@ export function SetupPage() {
         <h1 className="text-2xl font-medium">Setup</h1>
         <p className="mt-2 max-w-2xl text-sm text-stone-600">
           HomeGuard keeps one passphrase on this computer. The hash stays in the local SQLite
-          file. A saved network is still unconfirmed, and this phase does not scan it.
+          file. Save your home network here, then confirm it before looking for devices.
         </p>
       </section>
 
@@ -160,9 +172,21 @@ export function SetupPage() {
         ) : (
           <ul className="mt-3 space-y-2">
             {networks.map((network) => (
-              <li key={network.id} className="rounded-md border border-stone-300 bg-white px-4 py-3 text-sm">
-                {network.name} · {network.cidr}
-                {network.ownership_confirmed ? " · confirmed" : " · not confirmed for scanning"}
+              <li key={network.id} className="flex flex-col gap-2 rounded-md border border-stone-300 bg-white px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  {network.name} · {network.cidr}
+                  {network.ownership_confirmed ? " · confirmed" : " · not confirmed"}
+                </span>
+                {!network.ownership_confirmed && (
+                  <button
+                    className="w-fit rounded-md border border-stone-400 px-3 py-1.5 text-sm disabled:opacity-50"
+                    type="button"
+                    disabled={!status?.authenticated}
+                    onClick={() => confirmNetwork(network)}
+                  >
+                    Confirm this network
+                  </button>
+                )}
               </li>
             ))}
           </ul>

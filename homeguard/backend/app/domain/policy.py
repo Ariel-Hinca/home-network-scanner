@@ -78,6 +78,21 @@ def validate_cidr(cidr: str, *, largest_prefix_length: int = 16) -> ValidatedSco
     return ValidatedScope(network=parsed, host_bits_normalized=host_bits_normalized)
 
 
+def assert_scan_size(prefix_length: int, *, scan_min_prefix_length: int = 24) -> None:
+    """Reject a saved network that is too big to discover in one pass.
+
+    A smaller prefix length is a larger network. /16 is allowed to be saved,
+    but discovery only runs when the prefix is /24 or tighter.
+    """
+
+    if prefix_length < scan_min_prefix_length:
+        raise ScopeRejected(
+            "scan_scope_too_large",
+            f"Discovery only runs on /{scan_min_prefix_length} or a smaller network. "
+            "Save a tighter range, such as 192.168.1.0/24.",
+        )
+
+
 def propose_default_target(
     host: str,
     *,

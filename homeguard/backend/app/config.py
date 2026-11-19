@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     # Prefix length 16 is a /16, the largest acceptable scope.
     largest_prefix_length: int = 16
     default_prefix_length: int = 24
+    # Discovery refuses a network bigger than this. /24 means prefix length 24 or higher.
+    scan_min_prefix_length: int = 24
+    nmap_path: str = ""
+    scan_timeout_seconds: int = 600
     session_ttl_hours: int = 12
     session_cookie_name: str = "homeguard_session"
     cookie_secure: bool = False
@@ -45,7 +49,7 @@ class Settings(BaseSettings):
             return "127.0.0.1"
         return host
 
-    @field_validator("largest_prefix_length", "default_prefix_length")
+    @field_validator("largest_prefix_length", "default_prefix_length", "scan_min_prefix_length")
     @classmethod
     def prefix_in_range(cls, value: int) -> int:
         if value < 0 or value > 32:
@@ -57,6 +61,11 @@ class Settings(BaseSettings):
         if self.default_prefix_length < self.largest_prefix_length:
             raise ValueError(
                 "HOMEGUARD_DEFAULT_PREFIX_LENGTH must be a smaller network than "
+                "HOMEGUARD_LARGEST_PREFIX_LENGTH"
+            )
+        if self.scan_min_prefix_length < self.largest_prefix_length:
+            raise ValueError(
+                "HOMEGUARD_SCAN_MIN_PREFIX_LENGTH must be a smaller network than "
                 "HOMEGUARD_LARGEST_PREFIX_LENGTH"
             )
         return self

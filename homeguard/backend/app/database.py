@@ -7,7 +7,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import BACKEND_ROOT, Settings
-from app.models import Base
+from app.models import Base, ScanProfile
 
 SessionLocal: sessionmaker[Session] | None = None
 engine: Engine | None = None
@@ -44,7 +44,27 @@ def init_db(settings: Settings) -> Engine:
         cursor.close()
 
     Base.metadata.create_all(bind=engine)
+    _seed_profiles()
     return engine
+
+
+def _seed_profiles() -> None:
+    if SessionLocal is None:
+        return
+    db = SessionLocal()
+    try:
+        exists = db.query(ScanProfile).filter(ScanProfile.key == "discovery").one_or_none()
+        if exists is None:
+            db.add(
+                ScanProfile(
+                    key="discovery",
+                    name="Host discovery",
+                    port_set="common-home",
+                )
+            )
+            db.commit()
+    finally:
+        db.close()
 
 
 def check_database() -> bool:

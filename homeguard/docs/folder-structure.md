@@ -18,7 +18,7 @@ homeguard/
       main.py                  FastAPI factory, CORS, lifespan, /api mount
       config.py                Pydantic settings, HOMEGUARD_* variables
       database.py              SQLite engine, WAL, create_all
-      models.py                settings, sessions, networks, audit events
+      models.py                settings, sessions, networks, scans, devices, audit events
       schemas.py               request and response models
       api/
         deps.py                DB session, local header, cookie session
@@ -27,12 +27,15 @@ homeguard/
           health.py            GET /api/health
           setup.py             passphrase and session
           networks.py          scope check, interfaces, saved networks
-          scans.py             reserved; scan start returns 501
+          profiles.py          GET /api/profiles
+          scans.py             discovery start, status, cancel, and hosts
           audit.py             recent local events
       domain/
-        policy.py              RFC 1918, /16 cap, /24 suggestion
+        policy.py              RFC 1918, /16 save cap, /24 discovery cap
         interfaces.py          local IPv4 adapters
         passwords.py           Argon2id hashing
+      adapters/nmap/           fixed Nmap arguments and XML reading
+      workers/scan_worker.py   one discovery at a time
     tests/
   frontend/
     package.json

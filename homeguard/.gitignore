@@ -10,6 +10,7 @@ __pycache__/
 *.db
 *.db-wal
 *.db-shm
+backend/data/scans/
 node_modules/
 dist/
 *.log

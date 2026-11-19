@@ -14,13 +14,15 @@ Example response (`200`):
   "service": "HomeGuard",
   "version": "0.1.0",
   "database": "ok",
+  "nmap": "ok",
   "api_host": "127.0.0.1",
   "api_port": 8000,
   "scope_policy": {
     "address_family": "ipv4",
     "allowed_ranges": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"],
     "max_scope": "/16",
-    "default_scope": "/24"
+    "default_scope": "/24",
+    "scan_scope": "/24"
   }
 }
 ```
@@ -29,6 +31,8 @@ What each field means:
 
 - `status` is `ok` when `SELECT 1` succeeds. It is `degraded` when the database check fails, and the HTTP status is then `503`.
 - `database` is `ok` or `error` for that same check.
+- `nmap` is `ok` when the Nmap program can be found, and `missing` when it cannot. A missing Nmap install does not by itself make `status` degraded.
+- `scan_scope` is the largest network discovery will run. `/24` means a normal home-sized range.
 - `api_host` and `api_port` are the configured bind, not a measurement of who is connected.
 - `scope_policy.allowed_ranges` lists the three RFC 1918 blocks. A target must sit entirely inside one of them.
 - `max_scope` is `/16`. A prefix length below 16, such as `10.0.0.0/8`, is rejected as too large.

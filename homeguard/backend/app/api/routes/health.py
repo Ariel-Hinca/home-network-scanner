@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from app.adapters.nmap.runner import find_nmap
 from app.config import Settings, get_settings
 from app.database import check_database
 from app.domain.policy import RFC1918_NETWORKS
@@ -21,6 +22,7 @@ def health(settings: Annotated[Settings, Depends(get_settings)]):
         service=settings.app_name,
         version=settings.version,
         database="ok" if database_ok else "error",
+        nmap="ok" if find_nmap(settings.nmap_path) else "missing",
         api_host=settings.api_host,
         api_port=settings.api_port,
         scope_policy=ScopePolicy(
@@ -28,6 +30,7 @@ def health(settings: Annotated[Settings, Depends(get_settings)]):
             allowed_ranges=[str(network) for network in RFC1918_NETWORKS],
             max_scope=f"/{settings.largest_prefix_length}",
             default_scope=f"/{settings.default_prefix_length}",
+            scan_scope=f"/{settings.scan_min_prefix_length}",
         ),
     )
     if database_ok:
