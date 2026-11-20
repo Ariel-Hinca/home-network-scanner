@@ -109,21 +109,22 @@ export function SetupPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <section>
-        <h1 className="text-2xl font-medium">Setup</h1>
-        <p className="mt-2 max-w-2xl text-sm text-stone-600">
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-3xl bg-teal-800 px-6 py-7 text-teal-50 shadow-lg shadow-teal-900/10">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal-200">Setup</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Get HomeGuard ready</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-teal-100">
           Do these two things once. Make a password for this app, then tell HomeGuard which home
           Wi-Fi it is allowed to check. This is not your Wi-Fi password.
         </p>
       </section>
 
-      {error && <p className="text-sm text-red-800">{error}</p>}
-      {message && <p className="text-sm text-stone-800">{message}</p>}
+      {error && <p className="rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>}
+      {message && <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-950">{message}</p>}
 
-      <section className="rounded-lg border border-stone-300 bg-white p-5">
-        <p className="text-xs uppercase tracking-wide text-stone-500">Step 1</p>
-        <h2 className="mt-1 text-base font-medium">
+      <section className="rounded-3xl border border-white/80 bg-white/90 p-5 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Step 1</p>
+        <h2 className="mt-1 text-base font-semibold">
           {status?.setup_completed ? "Sign in" : "Create a password for this app"}
         </h2>
         <p className="mt-2 text-sm text-stone-600">{passwordHelp(status)}</p>
@@ -131,7 +132,7 @@ export function SetupPage() {
           <label className="text-sm">
             <span className="mb-1 block text-stone-600">Password</span>
             <input
-              className="w-full rounded-md border border-stone-300 px-3 py-2"
+              className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 outline-none focus:border-teal-700 focus:bg-white"
               type="password"
               autoComplete="new-password"
               minLength={12}
@@ -141,7 +142,7 @@ export function SetupPage() {
             />
           </label>
           <button
-            className="w-fit rounded-md bg-stone-900 px-4 py-2 text-sm text-stone-50 disabled:opacity-60"
+            className="w-fit rounded-full bg-teal-800 px-5 py-2 text-sm font-medium text-white disabled:opacity-60"
             type="submit"
             disabled={busy}
           >
@@ -150,9 +151,9 @@ export function SetupPage() {
         </form>
       </section>
 
-      <section className="rounded-lg border border-stone-300 bg-white p-5">
-        <p className="text-xs uppercase tracking-wide text-stone-500">Step 2</p>
-        <h2 className="mt-1 text-base font-medium">Choose your home Wi-Fi</h2>
+      <section className="rounded-3xl border border-white/80 bg-white/90 p-5 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Step 2</p>
+        <h2 className="mt-1 text-base font-semibold">Choose your home Wi-Fi</h2>
         <p className="mt-2 text-sm text-stone-600">
           These are the connections on this computer. Pick the one you use at home. It often starts
           with 192.168. Skip VPN and virtual connections if you are not sure.
@@ -165,7 +166,7 @@ export function SetupPage() {
             No home Wi-Fi was found. Connect this computer to your home network, then refresh the page.
           </p>
         ) : (
-          <ul className="mt-4 divide-y divide-stone-200">
+          <ul className="mt-4 space-y-3">
             {usable.map((item) => (
               <ConnectionRow
                 key={`${item.name}-${item.address}`}
@@ -191,15 +192,15 @@ export function SetupPage() {
         )}
       </section>
 
-      <section>
-        <p className="text-xs uppercase tracking-wide text-stone-500">Step 3</p>
-        <h2 className="mt-1 text-base font-medium">Allow HomeGuard to look</h2>
+      <section className="rounded-3xl border border-white/80 bg-white/90 p-5 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Step 3</p>
+        <h2 className="mt-1 text-base font-semibold">Allow HomeGuard to look</h2>
         {networks.length === 0 ? (
           <p className="mt-3 text-sm text-stone-600">You have not chosen a home network yet.</p>
         ) : (
           <ul className="mt-3 space-y-2">
             {networks.map((network) => (
-              <li key={network.id} className="flex flex-col gap-2 rounded-md border border-stone-300 bg-white px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <li key={network.id} className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between">
                 <span>
                   <span className="font-medium">{friendlyConnectionName(network.name)}</span>
                   <span className="mt-1 block text-stone-600">
@@ -212,7 +213,7 @@ export function SetupPage() {
                 <span className="flex flex-wrap gap-2">
                   {!network.ownership_confirmed && (
                     <button
-                      className="w-fit rounded-md border border-stone-400 px-3 py-1.5 text-sm disabled:opacity-50"
+                      className="w-fit rounded-full bg-teal-800 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                       type="button"
                       disabled={!status?.authenticated}
                       onClick={() => confirmNetwork(network)}
@@ -221,7 +222,7 @@ export function SetupPage() {
                     </button>
                   )}
                   <button
-                    className="w-fit rounded-md border border-stone-400 px-3 py-1.5 text-sm disabled:opacity-50"
+                    className="w-fit rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium disabled:opacity-50"
                     type="button"
                     disabled={!status?.authenticated}
                     onClick={() => removeNetwork(network)}
@@ -248,14 +249,14 @@ function ConnectionRow({
   onSave: (item: InterfaceInfo) => void;
 }) {
   return (
-    <li className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <li className="flex flex-col gap-3 rounded-2xl bg-stone-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-sm font-medium">{friendlyConnectionName(item.name)}</p>
         <p className="text-sm text-stone-600">This computer’s address: {item.address}</p>
         <p className="text-sm text-stone-600">Home network to check: {item.suggested_scan_cidr}</p>
       </div>
       <button
-        className="w-fit shrink-0 rounded-md border border-stone-400 px-3 py-1.5 text-sm disabled:opacity-50"
+        className="w-fit shrink-0 rounded-full border border-teal-800/20 bg-white px-4 py-2 text-sm font-medium text-teal-900 disabled:opacity-50"
         type="button"
         disabled={!canSave}
         onClick={() => onSave(item)}
