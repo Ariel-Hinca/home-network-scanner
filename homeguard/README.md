@@ -86,3 +86,17 @@ pytest
 ```
 
 You want every test passed. Then, on the website, after a finished device search, click **Check common ports**. Wait until it says the devices were checked. Under each device, open ports are listed, and the other checked ports are counted as closed or unanswered. A camera, printer, television, or Windows computer can pick up a short hint from those ports. A feeder or a light usually will not. Clicking **Check common ports** before any device has been found should say to look for devices first.
+
+## Check phase 3
+
+Phase 3 does not scan again. It explains each open port from the common-port check with one of three labels: expected, worth a look, or close it if you do not use it.
+
+With the backend running and the virtualenv active:
+
+```powershell
+cd C:\Users\hinca\OneDrive\Bureaublad\CURSOR\home-network-scanner\homeguard\backend
+.\.venv\Scripts\Activate.ps1
+pytest
+```
+
+You want every test passed. Restart the backend if it was already running, then refresh `http://127.0.0.1:5173`. After a finished port check, each open port should have a sentence under the device. A web page on the router should say **Expected**. An old remote login, port 23, should say **Close it if you do not use it**. A closed port should not get a sentence. No new search starts when you only refresh the page.

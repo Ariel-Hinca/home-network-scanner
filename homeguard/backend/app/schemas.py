@@ -118,6 +118,8 @@ class ServiceOut(BaseModel):
     port: int
     protocol: str
     state: str
+    label: str = ""
+    summary: str = ""
 
 
 class HostOut(BaseModel):

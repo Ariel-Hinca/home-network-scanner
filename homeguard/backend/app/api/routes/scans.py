@@ -9,6 +9,7 @@ from app.adapters.identity import device_kind
 from app.api.deps import get_db, require_local_request, require_session
 from app.config import Settings, get_settings
 from app.domain.policy import ScopeRejected, assert_scan_size, validate_cidr
+from app.domain.port_notes import explain_port
 from app.models import AuditEvent, HostObservation, Network, Scan, Service, utcnow
 from app.schemas import HostOut, ScanCreate, ScanOut, ServiceOut
 from app.workers.scan_worker import active_scan_exists, cancel_event_for, profile_by_key, request_cancel
@@ -209,21 +210,33 @@ def list_hosts(
             .all()
         )
         open_ports = {service.port for service in services if service.state == "open"}
+        kind = device_kind(row.ip, cidr, open_ports)
         result.append(
             HostOut(
                 ip=row.ip,
                 hostname=row.hostname,
                 mac=row.mac,
                 vendor=row.vendor,
-                kind=device_kind(row.ip, cidr, open_ports),
+                kind=kind,
                 state=row.state,
-                services=[
-                    ServiceOut(port=service.port, protocol=service.protocol, state=service.state)
-                    for service in services
-                ],
+                services=[_service_out(service, kind) for service in services],
             )
         )
     return result
+
+
+def _service_out(service: Service, kind: str) -> ServiceOut:
+    label = ""
+    summary = ""
+    if service.state == "open":
+        label, summary = explain_port(service.port, kind)
+    return ServiceOut(
+        port=service.port,
+        protocol=service.protocol,
+        state=service.state,
+        label=label,
+        summary=summary,
+    )
 
 
 def _latest_discovery_id(db: Session, network_id: int) -> int | None:

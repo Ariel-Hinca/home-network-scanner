@@ -152,7 +152,8 @@ export function DashboardPage() {
         <p className="mt-2 max-w-2xl text-sm text-stone-600">
           HomeGuard looks for phones, computers, printers, and the router on the Wi-Fi you allowed.
           It shows a name when the device or your router shares one, and otherwise the company on the network card.
-          It can then check a fixed list of common ports on those devices. It does not look for viruses yet.
+          It can then check a fixed list of common ports and explain what an open port usually means.
+          It does not look for viruses.
         </p>
       </section>
 
@@ -264,7 +265,7 @@ export function DashboardPage() {
             <h3 className="text-sm font-medium">Devices that answered</h3>
             <p className="mt-1 text-sm text-stone-600">
               A shared name is shown when one was found. Otherwise you see the company printed on the network card.
-              After a port check, some devices also get a short hint, such as camera or printer.
+              After a port check, each open port has a short note: expected, worth a look, or close it if you do not use it.
             </p>
             <ul className="mt-2 divide-y divide-stone-200">
               {hosts.map((host) => (
@@ -411,18 +412,44 @@ function friendlyName(name: string) {
   return name;
 }
 
-function PortSummary({ services }: { services: { port: number; state: string }[] }) {
+function PortSummary({
+  services,
+}: {
+  services: { port: number; state: string; label?: string; summary?: string }[];
+}) {
   if (services.length === 0) {
     return null;
   }
-  const open = services.filter((service) => service.state === "open").map((service) => service.port);
+  const open = services.filter((service) => service.state === "open");
   const closed = services.filter((service) => service.state !== "open").length;
   return (
-    <span className="mt-1 block text-stone-600">
-      {open.length > 0 ? `Open ports: ${open.join(", ")}.` : "No common ports were open."}
-      {closed > 0 ? ` ${closed} other checked ports were closed or did not answer.` : ""}
-    </span>
+    <div className="mt-1 text-stone-600">
+      <span className="block">
+        {open.length > 0 ? `Open ports: ${open.map((service) => service.port).join(", ")}.` : "No common ports were open."}
+        {closed > 0 ? ` ${closed} other checked ports were closed or did not answer.` : ""}
+      </span>
+      {open.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {open.map((service) => (
+            <li key={service.port}>
+              <span className="font-medium text-stone-800">Port {service.port}. {portLabel(service.label)}</span>{" "}
+              {service.summary}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
+}
+
+function portLabel(label: string | undefined) {
+  if (label === "expected") {
+    return "Expected.";
+  }
+  if (label === "close") {
+    return "Close it if you do not use it.";
+  }
+  return "Worth a look.";
 }
 
 function searchSummary(scan: Scan) {
@@ -436,7 +463,7 @@ function searchSummary(scan: Scan) {
     const count = scan.host_count;
     if (ports) {
       const label = count === 1 ? "1 device was checked." : `${count} devices were checked.`;
-      return `Finished. ${label} Open ports are listed under each device.`;
+      return `Finished. ${label} Each open port is explained under the device.`;
     }
     const label = count === 1 ? "1 device answered." : `${count} devices answered.`;
     return `Finished. ${label}`;

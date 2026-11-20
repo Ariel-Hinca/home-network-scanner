@@ -283,8 +283,14 @@ def test_port_check_records_open_and_closed_ports(client: TestClient, monkeypatc
     assert hosts[0]["vendor"] == "Apple"
     assert hosts[0]["mac"] == "AA:BB:CC:11:22:33"
     assert hosts[0]["services"] == [
-        {"port": 23, "protocol": "tcp", "state": "closed"},
-        {"port": 80, "protocol": "tcp", "state": "open"},
+        {"port": 23, "protocol": "tcp", "state": "closed", "label": "", "summary": ""},
+        {
+            "port": 80,
+            "protocol": "tcp",
+            "state": "open",
+            "label": "review",
+            "summary": "This is a web page. Open it in a browser only if you know this device.",
+        },
     ]
 
 

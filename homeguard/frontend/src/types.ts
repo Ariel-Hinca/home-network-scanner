@@ -70,5 +70,5 @@ export type DiscoveredHost = {
   vendor: string;
   kind: string;
   state: string;
-  services?: { port: number; protocol: string; state: string }[];
+  services?: { port: number; protocol: string; state: string; label?: string; summary?: string }[];
 };
