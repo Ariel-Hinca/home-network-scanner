@@ -109,22 +109,30 @@ export function SetupPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-3xl bg-teal-800 px-6 py-7 text-teal-50 shadow-lg shadow-teal-900/10">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal-200">Setup</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Get HomeGuard ready</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-teal-100">
+    <div className="space-y-8">
+      <section className="hg-rise overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-teal-800 via-teal-800 to-teal-950 px-6 py-8 text-teal-50 shadow-lg shadow-teal-900/15">
+        <p className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-teal-200">Setup</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Get HomeGuard ready</h1>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-teal-50/90">
           Do these two things once. Make a password for this app, then tell HomeGuard which home
           Wi-Fi it is allowed to check. This is not your Wi-Fi password.
         </p>
       </section>
 
-      {error && <p className="rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>}
-      {message && <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-950">{message}</p>}
+      {error && (
+        <p role="alert" className="rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-800">
+          {error}
+        </p>
+      )}
+      {message && (
+        <p role="status" className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+          {message}
+        </p>
+      )}
 
-      <section className="rounded-3xl border border-white/80 bg-white/90 p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Step 1</p>
-        <h2 className="mt-1 text-base font-semibold">
+      <section className="hg-rise-delay rounded-[1.75rem] border border-teal-900/10 bg-white/90 p-5 shadow-sm">
+        <p className="font-display text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Step 1</p>
+        <h2 className="mt-1 text-lg font-semibold">
           {status?.setup_completed ? "Sign in" : "Create a password for this app"}
         </h2>
         <p className="mt-2 text-sm text-stone-600">{passwordHelp(status)}</p>
@@ -151,9 +159,9 @@ export function SetupPage() {
         </form>
       </section>
 
-      <section className="rounded-3xl border border-white/80 bg-white/90 p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Step 2</p>
-        <h2 className="mt-1 text-base font-semibold">Choose your home Wi-Fi</h2>
+      <section className="rounded-[1.75rem] border border-teal-900/10 bg-white/90 p-5 shadow-sm">
+        <p className="font-display text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Step 2</p>
+        <h2 className="mt-1 text-lg font-semibold">Choose your home Wi-Fi</h2>
         <p className="mt-2 text-sm text-stone-600">
           These are the connections on this computer. Pick the one you use at home. It often starts
           with 192.168. Skip VPN and virtual connections if you are not sure.
@@ -192,9 +200,9 @@ export function SetupPage() {
         )}
       </section>
 
-      <section className="rounded-3xl border border-white/80 bg-white/90 p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Step 3</p>
-        <h2 className="mt-1 text-base font-semibold">Allow HomeGuard to look</h2>
+      <section className="rounded-[1.75rem] border border-teal-900/10 bg-white/90 p-5 shadow-sm">
+        <p className="font-display text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Step 3</p>
+        <h2 className="mt-1 text-lg font-semibold">Allow HomeGuard to look</h2>
         {networks.length === 0 ? (
           <p className="mt-3 text-sm text-stone-600">You have not chosen a home network yet.</p>
         ) : (
