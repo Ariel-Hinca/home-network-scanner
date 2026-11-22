@@ -146,11 +146,11 @@ export function DashboardPage() {
   const ready = health?.status === "ok" && health.database === "ok" && health.nmap === "ok";
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-3xl bg-teal-800 px-6 py-7 text-teal-50 shadow-lg shadow-teal-900/10">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal-200">Home</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Your home network</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-teal-100">
+    <div className="space-y-8">
+      <section className="hg-rise overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-teal-800 via-teal-800 to-teal-950 px-6 py-8 text-teal-50 shadow-lg shadow-teal-900/15">
+        <p className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-teal-200">HomeGuard</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Your home network</h1>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-teal-50/90">
           HomeGuard looks for phones, computers, printers, and the router on the Wi-Fi you allowed.
           It shows a name when the device or your router shares one, and otherwise the company on the network card.
           It can then check a fixed list of common ports and explain what an open port usually means.
@@ -158,13 +158,24 @@ export function DashboardPage() {
         </p>
       </section>
 
-      <section className="rounded-3xl border border-white/80 bg-white/90 p-5 shadow-sm">
+      <section className="hg-rise-delay rounded-[1.75rem] border border-teal-900/10 bg-white/90 p-5 shadow-sm">
         <div className="flex items-center gap-3">
-          <span className={`h-3 w-3 rounded-full ${ready ? "bg-emerald-500" : "animate-pulse bg-amber-400"}`} />
-          <h2 className="text-base font-semibold">{ready ? "HomeGuard is ready" : "HomeGuard is not ready"}</h2>
+          <span
+            aria-hidden="true"
+            className={`h-3 w-3 rounded-full ${ready ? "bg-emerald-500" : "animate-pulse bg-amber-400"}`}
+          />
+          <h2 className="text-lg font-semibold">{ready ? "HomeGuard is ready" : "HomeGuard is not ready"}</h2>
         </div>
-        {healthError && <p className="mt-3 rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-800">{healthError}</p>}
-        {!health && !healthError && <p className="mt-3 text-sm text-stone-600">Checking that HomeGuard is running…</p>}
+        {healthError && (
+          <p role="alert" className="mt-3 rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            {healthError}
+          </p>
+        )}
+        {!health && !healthError && (
+          <p className="mt-3 text-sm text-stone-600" aria-live="polite">
+            Checking that HomeGuard is running…
+          </p>
+        )}
         {health?.nmap === "missing" && (
           <p className="mt-3 rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-800">
             The program that looks for devices is missing. Install Nmap, close and reopen the terminal, then start HomeGuard again.
@@ -200,9 +211,9 @@ export function DashboardPage() {
         )}
       </section>
 
-      <section className="rounded-3xl border border-white/80 bg-white/90 p-5 shadow-sm">
+      <section className="rounded-[1.75rem] border border-teal-900/10 bg-white/90 p-5 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-base font-semibold">Devices on your Wi-Fi</h2>
+          <h2 className="text-lg font-semibold">Devices on your Wi-Fi</h2>
           {hosts.length > 0 && (
             <span className="rounded-full bg-teal-50 px-3 py-1 text-sm font-medium text-teal-900">
               {hosts.length === 1 ? "1 device" : `${hosts.length} devices`}
@@ -312,8 +323,8 @@ export function DashboardPage() {
         )}
       </section>
 
-      <details className="rounded-3xl border border-white/80 bg-white/90 p-5 text-sm shadow-sm">
-        <summary className="cursor-pointer text-base font-semibold">Check an address before saving it</summary>
+      <details className="rounded-[1.75rem] border border-teal-900/10 bg-white/90 p-5 text-sm shadow-sm">
+        <summary className="cursor-pointer text-lg font-semibold">Check an address before saving it</summary>
         <p className="mt-3 text-stone-600">
           Use this only if you want to know whether an address is a private home network. An example is 192.168.1.0/24.
         </p>
