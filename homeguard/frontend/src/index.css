@@ -1,20 +1,50 @@
 @import "tailwindcss";
 
+:root {
+  --hg-ink: #1c1917;
+  --hg-muted: #57534e;
+  --hg-surface: rgba(255, 255, 255, 0.92);
+  --hg-border: rgba(15, 118, 110, 0.12);
+  --hg-teal: #115e59;
+  --hg-teal-deep: #0f4c47;
+  --hg-teal-soft: #ccfbf1;
+  --hg-sky: #e0f2fe;
+  --hg-paper: #eef6f4;
+  --hg-focus: #0f766e;
+  --hg-radius: 1.25rem;
+  --font-display: "Sora", "Segoe UI", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
-  color: #1c1917;
-  font-family: "Segoe UI", sans-serif;
+  color: var(--hg-ink);
+  font-family: var(--font-body);
   background:
-    radial-gradient(circle at top left, #ccfbf1 0, transparent 32rem),
-    radial-gradient(circle at 100% 0, #e0f2fe 0, transparent 28rem),
-    #f6f3ee;
+    radial-gradient(circle at 8% -10%, var(--hg-teal-soft) 0, transparent 34rem),
+    radial-gradient(circle at 100% 0, var(--hg-sky) 0, transparent 28rem),
+    linear-gradient(180deg, #f3faf8 0%, var(--hg-paper) 48%, #f7f4ef 100%);
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 button,
 a,
-summary {
-  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+summary,
+input {
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
 }
 
 button:not(:disabled):hover {
@@ -23,4 +53,37 @@ button:not(:disabled):hover {
 
 button:disabled {
   cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--hg-focus);
+  outline-offset: 3px;
+}
+
+@keyframes hg-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hg-rise {
+  animation: hg-rise 420ms ease-out both;
+}
+
+.hg-rise-delay {
+  animation: hg-rise 520ms 80ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hg-rise,
+  .hg-rise-delay,
+  button:not(:disabled):hover {
+    animation: none;
+    transform: none;
+  }
 }
